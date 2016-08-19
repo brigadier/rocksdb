@@ -77,6 +77,17 @@ class DBWithTTLImpl : public DBWithTTL {
   virtual Iterator* NewIterator(const ReadOptions& opts,
                                 ColumnFamilyHandle* column_family) override;
 
+
+  using StackableDB::NewIterators;
+  virtual Status NewIterators(
+      const ReadOptions& options,
+      const std::vector<ColumnFamilyHandle*>& column_families,
+      std::vector<Iterator*>* iterators) override;
+
+  virtual Status SetColumnFamilyTTL(ColumnFamilyHandle* column_family, int32_t ttl) override;
+
+  virtual Status GetColumnFamilyTTL(ColumnFamilyHandle* column_family, int32_t* ttl) override;
+
   virtual DB* GetBaseDB() override { return db_; }
 
   static bool IsStale(const Slice& value, int32_t ttl, Env* env);
@@ -176,6 +187,10 @@ class TtlCompactionFilter : public CompactionFilter {
     return false;
   }
 
+  int32_t GetTTL() const {
+    return ttl_;
+  }
+
   virtual const char* Name() const override { return "Delete By TTL"; }
 
  private:
@@ -205,9 +220,22 @@ class TtlCompactionFilterFactory : public CompactionFilterFactory {
         ttl_, env_, nullptr, std::move(user_comp_filter_from_factory)));
   }
 
+
+  int32_t GetTTL() {
+    return ttl_;
+  }
+
+
+  Status SetTTL(int32_t ttl) {
+    ttl_ = ttl;
+    return Status::OK();
+  }
+
   virtual const char* Name() const override {
     return "TtlCompactionFilterFactory";
   }
+
+
 
  private:
   int32_t ttl_;

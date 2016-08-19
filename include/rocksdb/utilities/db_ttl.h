@@ -60,6 +60,9 @@ class DBWithTTL : public StackableDB {
                      DBWithTTL** dbptr, std::vector<int32_t> ttls,
                      bool read_only = false);
 
+  virtual Status SetColumnFamilyTTL(ColumnFamilyHandle* column_family, int32_t ttl) = 0;
+  virtual Status GetColumnFamilyTTL(ColumnFamilyHandle* column_family, int32_t* ttl) = 0;
+
  protected:
   explicit DBWithTTL(DB* db) : StackableDB(db) {}
 };

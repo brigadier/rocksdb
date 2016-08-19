@@ -298,5 +298,51 @@ Iterator* DBWithTTLImpl::NewIterator(const ReadOptions& opts,
   return new TtlIterator(db_->NewIterator(opts, column_family));
 }
 
+Status DBWithTTLImpl::NewIterators(
+      const ReadOptions& options,
+      const std::vector<ColumnFamilyHandle*>& column_families,
+      std::vector<Iterator*>* iterators) {
+
+    std::vector<Iterator*> tempiterators;
+    Status result = db_->NewIterators(options, column_families, &tempiterators);
+    if (result == Status::OK()) {
+        for (auto it = begin (tempiterators); it != end (tempiterators); ++it) {
+            iterators->push_back(new TtlIterator(*it));
+        }
+    }
+    return result;
+}
+
+
+Status DBWithTTLImpl::GetColumnFamilyTTL(ColumnFamilyHandle* column_family, int32_t* ttl) {
+    auto cfh = reinterpret_cast<ColumnFamilyHandleImpl*>(column_family);
+    auto cfd = cfh->cfd();
+    if (cfd->ioptions()->compaction_filter) {
+        TtlCompactionFilter const * cf = reinterpret_cast<TtlCompactionFilter const *>(
+                                                                cfd->ioptions()->compaction_filter);
+        *ttl = cf->GetTTL();
+        return Status::OK();
+    } else {
+        TtlCompactionFilterFactory* cf = reinterpret_cast<TtlCompactionFilterFactory*>(
+                                                                cfd->ioptions()->compaction_filter_factory);
+        *ttl = cf->GetTTL();
+        return Status::OK();
+    }
+
+}
+
+Status DBWithTTLImpl::SetColumnFamilyTTL(ColumnFamilyHandle* column_family, int32_t ttl) {
+    auto cfh = reinterpret_cast<ColumnFamilyHandleImpl*>(column_family);
+    auto cfd = cfh->cfd();
+    if (cfd->ioptions()->compaction_filter) {
+        return Status::InvalidArgument(
+            "can't change TTL for column families with non-default compaction filter.");
+    } else {
+        TtlCompactionFilterFactory* cf = reinterpret_cast<TtlCompactionFilterFactory*>(
+                                                                cfd->ioptions()->compaction_filter_factory);
+        return cf->SetTTL(ttl);
+    }
+}
+
 }  // namespace rocksdb
 #endif  // ROCKSDB_LITE
